@@ -1,6 +1,6 @@
 <?php
 /*
-Plugin Name: Browserstack
+Plugin Name: CrossBrowserTesting
 Plugin URI: http://www.atomicsmash.co.uk
 Description: Sync development media files to Amazon S3
 Version: 0.0.1
@@ -67,10 +67,6 @@ class ScreenshotTestApi{
 		return !$this->currentTest->versions[0]->active;
 	}
 
-	function getScreenshotBrowsers(){
-		$url = $this->baseUrl . "/browsers";
-		return $this->callApi($url, 'GET');
-	}
 
 	function getAllTests($params = false){
 		$url = $this->baseUrl;
@@ -252,19 +248,42 @@ function viewTestHistory(){
 
 }
 
-function listScreenshotBrowsers(){
-    print EOL."** Starting CrossBrowserTesting.com API v3 List Screenshot Browsers example **".EOL;
+function getScreenshotBrowsers(){
 
     //create api object and set auth info
     $screenshotApi = new ScreenshotTestApi(USERNAME,PASSWORD);
-    $oss = $screenshotApi->getScreenshotBrowsers();
+
+	$url = $screenshotApi->baseUrl . "/browsers";
+	$oss = $screenshotApi->callApi($url, 'GET');
+
+
+	$browsers = array();
+
+	$count = 0;
 
     foreach ($oss as $os){
-        foreach($os->browsers as $browser){
 
-            print $os->name . TAB . $browser->name . TAB . $os->api_name . "|" . $browser->api_name.EOL;
+		$browsers[$os->api_name]['os-name'] = $os->name;
+		$browsers[$os->api_name]['os-api-name'] = $os->api_name;
+
+
+        foreach($os->browsers as $key => $browser){
+
+			// $browsers[$count]['browser-name'] = $browser->name;
+			// $browsers[$count]['os-api-name'] = $os->api_name;
+			// $browsers[$count]['browser-api-name'] = $browser->api_name;
+			// $browsers[$count]['full-api-name'] = $os->api_name . "|" . $browser->api_name;
+			$browsers[$os->api_name]['browsers'][$key]['browser-name'] = $browser->name;
+			$browsers[$os->api_name]['browsers'][$key]['browser-api-name'] = $browser->api_name;
+			$browsers[$os->api_name]['browsers'][$key]['full-api-name'] = $os->api_name . "|" . $browser->api_name;
+
+			// $count++;
+
         }
     }
+
+	return $browsers;
+
 }
 
 if(isset($_GET['test'])){
@@ -322,6 +341,179 @@ add_action('admin_bar_menu', 'custom_toolbar_link', 999);
 
 
 
+
+add_action( 'admin_menu', 'wpcrossbrowsertesting_add_admin_menu' );
+add_action( 'admin_init', 'wpcrossbrowsertesting_settings_init' );
+
+
+function wpcrossbrowsertesting_add_admin_menu(  ) {
+
+	add_submenu_page( 'options-general.php', 'wpcrossbrowsertesting', 'wpcrossbrowsertesting', 'manage_options', 'wpcrossbrowsertesting', 'wpcrossbrowsertesting_options_page' );
+
+}
+
+
+function wpcrossbrowsertesting_settings_init(  ) {
+
+	register_setting( 'pluginPage', 'wpcrossbrowsertesting_settings' );
+
+	add_settings_section(
+		'wpcrossbrowsertesting_pluginPage_section',
+		__( 'Your section description', 'wpcrossbrowsertesting' ),
+		'wpcrossbrowsertesting_settings_section_callback',
+		'pluginPage'
+	);
+
+	add_settings_field(
+		'wpcrossbrowsertesting_text_field_0',
+		__( 'Settings field description', 'wpcrossbrowsertesting' ),
+		'wpcrossbrowsertesting_text_field_0_render',
+		'pluginPage',
+		'wpcrossbrowsertesting_pluginPage_section'
+	);
+
+	add_settings_field(
+		'wpcrossbrowsertesting_text_field_1',
+		__( 'Settings field description', 'wpcrossbrowsertesting' ),
+		'wpcrossbrowsertesting_text_field_1_render',
+		'pluginPage',
+		'wpcrossbrowsertesting_pluginPage_section'
+	);
+
+	add_settings_field(
+		'wpcrossbrowsertesting_checkbox_field_2',
+		__( 'Settings field description', 'wpcrossbrowsertesting' ),
+		'wpcrossbrowsertesting_checkbox_field_2_render',
+		'pluginPage',
+		'wpcrossbrowsertesting_pluginPage_section'
+	);
+
+
+}
+
+
+function wpcrossbrowsertesting_text_field_0_render(  ) {
+
+	$options = get_option( 'wpcrossbrowsertesting_settings' );
+	?>
+	<input type='text' name='wpcrossbrowsertesting_settings[wpcrossbrowsertesting_text_field_0]' value='<?php echo $options['wpcrossbrowsertesting_text_field_0']; ?>'>
+	<?php
+
+}
+
+
+function wpcrossbrowsertesting_text_field_1_render(  ) {
+
+	$options = get_option( 'wpcrossbrowsertesting_settings' );
+	?>
+	<input type='text' name='wpcrossbrowsertesting_settings[wpcrossbrowsertesting_text_field_1]' value='<?php echo $options['wpcrossbrowsertesting_text_field_1']; ?>'>
+	<?php
+
+}
+
+
+function wpcrossbrowsertesting_checkbox_field_2_render(  ) {
+
+	$options = get_option( 'wpcrossbrowsertesting_settings' );
+
+	echo '<pre>';
+	print_r($options);
+	echo '</pre>';
+
+	$ossAndBrowsers = getScreenshotBrowsers();
+
+    // [16] => Array
+    //     (
+    //         [browser-name] => Mobile Safari 5.1
+    //         [os-api-name] => iPad2-iOS5
+    //         [browser-api-name] => MblSafari5.1
+    //         [full-api-name] => iPad2-iOS5|MblSafari5.1
+    //     )
+
+
+	// echo '<pre>';
+	// print_r($browsers);
+	// echo '</pre>';
+
+	foreach($ossAndBrowsers as $os){
+
+		// echo '<pre>';
+		// print_r($os);
+		// echo '</pre>';
+
+		echo "<h2>".$os['os-name']."</h2>";
+
+
+// Array
+// (
+//     [os-name] => Android Nexus 6P / 6.0
+//     [os-api-name] => Nexus6P-And60
+//     [browsers] => Array
+//         (
+//             [0] => Array
+//                 (
+//                     [browser-name] => Chrome Mobile 52
+//                     [browser-api-name] => MblChrome52
+//                     [full-api-name] => Nexus6P-And60|MblChrome52
+//                 )
+
+//         )
+
+// )
+// Array
+
+		foreach($os['browsers'] as $browser){
+
+			echo "<p>";
+			$checked = "";
+
+			if(isset($options['browsers'][$browser['full-api-name']])){
+				$checked = checked( $options['browsers'][$browser['full-api-name']], 1, 0 );
+			};
+
+			echo "<input type='checkbox' $checked name='wpcrossbrowsertesting_settings[browsers][".$browser['full-api-name']."]' id='wpcrossbrowsertesting_settings[browsers][".$browser['full-api-name']."]' value='1'>";
+
+			echo "<label for='wpcrossbrowsertesting_settings[browsers][".$browser['full-api-name']."]'>".$browser['browser-name']."</label>";
+
+			echo "</p>";
+
+		}
+	};
+
+	// echo '<pre>';
+	// print_r($browsers);
+	// echo '</pre>';
+
+	// checked( $options['wpcrossbrowsertesting_checkbox_field_2'], 1 );
+
+
+}
+
+
+function wpcrossbrowsertesting_settings_section_callback(  ) {
+
+	echo __( 'This section description', 'wpcrossbrowsertesting' );
+
+}
+
+
+function wpcrossbrowsertesting_options_page(  ) {
+
+	?>
+	<form action='options.php' method='post'>
+
+		<h2>wpcrossbrowsertesting</h2>
+
+		<?php
+		settings_fields( 'pluginPage' );
+		do_settings_sections( 'pluginPage' );
+		submit_button();
+		?>
+
+	</form>
+	<?php
+
+}
 
 
 
